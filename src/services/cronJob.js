@@ -56,27 +56,43 @@ const fetchAndSaveCryptoData = async () => {
   try {
     const fetchDataAndSavePromises = coins.map(async (coin) => {
       const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coin}`);
+
+      if (!response) {
+        console.log(`Error fetching ${coin}. Response was empty.`);
+      }
+
       const result = response.data;
 
-      // Save to the database
-      return new Crypto({
-        coin: result.id,
-        price: result.market_data.current_price.usd,
-        marketCap: result.market_data.market_cap.usd,
-        change24h: result.market_data.price_change_percentage_24h,
-        timestamp: new Date(),
-      }).save();
+      console.log(`Data fetched for ${coin}:`, result);
+
+      console.log(`Saving ${coin} data to the database...`);
+
+      try {
+        await new Crypto({
+          coin: result.id,
+          price: result.market_data.current_price.usd,
+          marketCap: result.market_data.market_cap.usd,
+          change24h: result.market_data.price_change_percentage_24h,
+          timestamp: new Date(),
+        }).save();
+        console.log(`${coin} data saved successfully.`);
+      } catch (saveError) {
+        console.error(`Error saving ${coin} data to the database:`, saveError.message);
+      }
     });
 
     // Wait for all fetch and save operations to complete
     await Promise.all(fetchDataAndSavePromises);
-    console.log("Crypto data fetched and stored successfully.");
+
+    console.log("All coin data fetched and saved successfully.");
+
   } catch (error) {
     console.error("Error fetching crypto data:", error.message);
   }
 };
 
 //a cron job that calls the fetchAndSaveCryptoData function every 2 hours
+
 const cronJob = cron.schedule(
   "0 */2 * * *", // Every 2 hours at the start of the hour
   async () => {

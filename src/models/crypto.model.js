@@ -4,6 +4,7 @@ const cryptoSchema = new mongoose.Schema({
   coin: {
     type: String,
     required: true,
+    enum:["bitcoin","ethereum","matic-network"]
   },
   price: {
     type: Number,
@@ -27,6 +28,8 @@ const cryptoSchema = new mongoose.Schema({
 
 //index on the timestamp field in descending order, so queries will return the newest documents first.
 cryptoSchema.index({timestamp:-1});
+
+cryptoSchema.index({coin:1});
 
 const Crypto = mongoose.model("Crypto", cryptoSchema);
 
