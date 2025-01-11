@@ -1,9 +1,8 @@
 import expres from "express";
-
-const router = new expres.Router();
-
-
-//pending
+import { getLatestCoinStats } from "../controllers/crypto.controller.js";
 
 
-export default router;  
+const cryptoRouter  = new expres.Router();
+cryptoRouter.get("/stats",getLatestCoinStats);
+
+export default cryptoRouter;  

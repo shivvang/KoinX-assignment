@@ -4,12 +4,15 @@ import express from "express";
 import connectDatabase from "./db/connect.js";
 import cryptoRouter from "./routes/cryptoRoutes.js"
 import startCronJob from "./services/cronJob.js";
+import helmet from "helmet";
 
 const app = express();
 
 
 // Middleware for parsing JSON
 app.use(express.json());
+
+app.use(helmet());
 
 // Route configuration
 app.use("/api/crypto",cryptoRouter);

@@ -1,41 +1,95 @@
 import axios from "axios";
-import cron from "node-cron";
 import Crypto from "../models/crypto.model.js";
+import cron from "node-cron";
 
+
+//previous approach :-
+
+// The await pauses the execution at each API call.
+// Once one API call is completed and saved in the database, it moves to the next coin.
+// This ensures operations happen one at a time in strict order.
+
+// Time-Consuming: Each operation depends on the previous one to complete, leading to N sequential operations.
+// If each fetch+save takes 1 second, 3 coins will take 3 seconds.
+
+// const fetchAndSaveCryptoData = async () => {
+//    try {
+//      // an array of coin IDs to fetch
+//      const coins = ["bitcoin", "ethereum", "matic-network"];
+     
+//      // Iterate over coins and fetch/save data
+//      for (const coin of coins) {
+//        const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coin}`);
+//        const result = response.data;
+ 
+//        // Save to the database
+//        await new Crypto({
+//          coin: result.id,
+//          price: result.market_data.current_price.usd,
+//          marketCap: result.market_data.market_cap.usd,
+//          change24h: result.market_data.price_change_percentage_24h,
+//          timestamp: new Date(), 
+//        }).save();
+//      }
+ 
+//      console.log("Crypto data fetched and stored successfully.");
+//    } catch (error) {
+//      console.error("Error fetching crypto data:", error.message);
+//    }
+//  };
+
+
+
+// New Approach:-
+
+// Faster Execution: All API calls and database saves are initiated at the same time. Total time = the time for the longest individual operation.
+// If each fetch+save takes 1 second, 3 coins will still take 1 second (not 3 seconds).
+// Efficient Use of Resources: Since the tasks are independent, they don't block each other.
+// Scalable: Works well for handling multiple asynchronous tasks without unnecessary delays.
+
+
+// Define a function to fetch and save crypto data
+
+const coins = ["bitcoin", "ethereum", "matic-network"];
 
 const fetchAndSaveCryptoData = async () => {
-   try {
-     // an array of coin IDs to fetch
-     const coins = ["bitcoin", "ethereum", "matic-network"];
-     
-     // Iterate over coins and fetch/save data
-     for (const coin of coins) {
-       const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coin}`);
-       const result = response.data;
- 
-       // Save to the database
-       await new Crypto({
-         coin: result.id,
-         price: result.market_data.current_price.usd,
-         marketCap: result.market_data.market_cap.usd,
-         change24h: result.market_data.price_change_percentage_24h,
-         timestamp: new Date(), 
-       }).save();
-     }
- 
-     console.log("Crypto data fetched and stored successfully.");
-   } catch (error) {
-     console.error("Error fetching crypto data:", error.message);
-   }
- };
+  try {
+    const fetchDataAndSavePromises = coins.map(async (coin) => {
+      const response = await axios.get(`https://api.coingecko.com/api/v3/coins/${coin}`);
+      const result = response.data;
 
- //The cron expression 0 */2 * * * would schedule the task every 2 hours starting from the top of each hour divisible by 2 
- // (like 12:00, 2:00, 4:00, etc.)
-const cronJob = cron.schedule("0 */2 * * *",fetchAndSaveCryptoData,{scheduled:false});
+      // Save to the database
+      return new Crypto({
+        coin: result.id,
+        price: result.market_data.current_price.usd,
+        marketCap: result.market_data.market_cap.usd,
+        change24h: result.market_data.price_change_percentage_24h,
+        timestamp: new Date(),
+      }).save();
+    });
+
+    // Wait for all fetch and save operations to complete
+    await Promise.all(fetchDataAndSavePromises);
+    console.log("Crypto data fetched and stored successfully.");
+  } catch (error) {
+    console.error("Error fetching crypto data:", error.message);
+  }
+};
+
+//a cron job that calls the fetchAndSaveCryptoData function every 2 hours
+const cronJob = cron.schedule(
+  "0 */2 * * *", // Every 2 hours at the start of the hour
+  async () => {
+    console.log("Cron job started...");
+    await fetchAndSaveCryptoData();
+    console.log("Cron job finished.");
+  },
+  { scheduled: false }
+);
+
 
 const startCronJob = () => {
    cronJob.start();
-   console.log("Cron job started.");
  };
  
  export default startCronJob;
